@@ -21,6 +21,7 @@ import {
 import type { Persona, GestionUI, Cuota } from "../types";
 import api from "../lib/api";
 import { useSWRConfig } from "swr";
+import { PlanPagoSection } from "./plan-pago-section";
 
 function contactListsFromPersona(p: Persona) {
   const phones =
@@ -107,6 +108,12 @@ function CuotasList({ cuotas }: { cuotas?: Cuota[] }) {
                     Vencimiento
                   </th>
                   <th className="px-3 py-2 font-black text-muted-foreground uppercase text-right">
+                    Capital
+                  </th>
+                  <th className="px-3 py-2 font-black text-muted-foreground uppercase text-right">
+                    Intereses
+                  </th>
+                  <th className="px-3 py-2 font-black text-muted-foreground uppercase text-right">
                     Total
                   </th>
                 </tr>
@@ -118,13 +125,19 @@ function CuotasList({ cuotas }: { cuotas?: Cuota[] }) {
                     className="hover:bg-muted/30 transition-colors"
                   >
                     <td className="px-3 py-2 font-bold text-primary">
-                      {cuota.numero_cuota}/{cuota.cantidad_cuotas}
+                      {cuota.numero_cuota}
                     </td>
                     <td className="px-3 py-2 flex items-center gap-1.5 text-muted-foreground font-medium">
                       <Calendar className="size-3 text-muted-foreground/40" />
                       {formatDate(cuota.vencimiento)}
                     </td>
-                    <td className="px-3 py-2 text-right font-black text-foreground">
+                    <td className="px-3 py-2 text-right font-medium text-foreground/80 text-[12px]">
+                      {formatCurrency(Number(cuota.capital))}
+                    </td>
+                    <td className="px-3 py-2 text-right font-medium text-foreground/80 text-[12px]">
+                      {formatCurrency(Number(cuota.intereses))}
+                    </td>
+                    <td className="px-3 py-2 text-right font-black text-foreground text-[13px]">
                       {formatCurrency(
                         Number(cuota.capital) + Number(cuota.intereses),
                       )}
@@ -134,16 +147,31 @@ function CuotasList({ cuotas }: { cuotas?: Cuota[] }) {
               </tbody>
             </table>
           </div>
-          <div className="flex justify-between px-2 text-[10px] font-black uppercase text-muted-foreground/60">
-            <span>Total Adeudado</span>
-            <span className="text-destructive font-black">
-              {formatCurrency(
-                cuotas.reduce(
-                  (acc, c) => acc + Number(c.capital) + Number(c.intereses),
-                  0,
-                ),
-              )}
-            </span>
+          <div className="grid grid-cols-5 gap-2 px-2 text-[10px] font-black uppercase text-muted-foreground/60">
+            <div className="col-span-2"></div>
+            <div className="flex flex-col text-right">
+              <span>Subt. Cap.</span>
+              <span className="text-foreground text-[12px]">
+                {formatCurrency(cuotas.reduce((acc, c) => acc + Number(c.capital), 0))}
+              </span>
+            </div>
+            <div className="flex flex-col text-right">
+              <span>Subt. Int.</span>
+              <span className="text-foreground text-[12px]">
+                {formatCurrency(cuotas.reduce((acc, c) => acc + Number(c.intereses), 0))}
+              </span>
+            </div>
+            <div className="flex flex-col text-right">
+              <span>Total Adeudado</span>
+              <span className="text-destructive text-[14px]">
+                {formatCurrency(
+                  cuotas.reduce(
+                    (acc, c) => acc + Number(c.capital) + Number(c.intereses),
+                    0,
+                  ),
+                )}
+              </span>
+            </div>
           </div>
         </div>
       )}
@@ -278,13 +306,13 @@ export function PersonaDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 md:items-center md:p-4 animate-in fade-in duration-300"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-0 md:items-center md:px-3 md:py-1 animate-in fade-in duration-300"
       onClick={() => {
         onClose();
       }}
     >
       <div
-        className="relative w-full max-w-7xl max-h-[92vh] overflow-hidden rounded-t-[2.5rem] bg-background shadow-2xl md:rounded-[2.5rem] flex flex-col border border-border animate-in slide-in-from-bottom-10 duration-500"
+        className="relative w-full max-w-[95vw] max-h-[98vh] overflow-hidden rounded-t-[2.5rem] bg-background shadow-2xl md:rounded-[2.5rem] flex flex-col border border-border animate-in slide-in-from-bottom-10 duration-500"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -569,10 +597,10 @@ export function PersonaDetailModal({
                               key={item.id}
                               className="group rounded-2xl border border-border bg-card p-4 transition-all hover:border-primary/30 hover:shadow-md"
                             >
-                              <p className="font-extrabold text-primary">
+                              <p className="font-extrabold text-primary text-[18px]">
                                 {item.domicilio}
                               </p>
-                              <div className="mt-2 grid grid-cols-2 gap-2 text-xs font-bold text-muted-foreground">
+                              <div className="mt-2 grid grid-cols-2 gap-2 text-[14px] font-bold text-muted-foreground">
                                 <span className="rounded bg-muted px-2 py-1">
                                   Padrón: {item.numero_padron}
                                 </span>
@@ -580,15 +608,16 @@ export function PersonaDetailModal({
                                   Web: {item.codigo_web}
                                 </span>
                               </div>
-                              <p className="mt-2 text-xs">
+                              <p className="mt-2 text-[14px]">
                                 {item.direccion_padron}
                               </p>
-                              <div className="mt-3 flex gap-4 text-[10px] font-black uppercase tracking-tighter text-indigo-500/80">
+                              <div className="mt-3 flex gap-4 text-[12px] font-black uppercase tracking-tighter text-indigo-500/80">
                                 <span>SUP: {item.sup_terreno} M²</span>
                                 <span>FRENTE: {item.mts_frente} M</span>
                               </div>
 
                               <CuotasList cuotas={item.cuotas} />
+                              <PlanPagoSection producto="tgi_urbano" cuotas={item.cuotas} />
                             </div>
                           ))}
                         </div>
@@ -607,19 +636,20 @@ export function PersonaDetailModal({
                               key={item.id}
                               className="rounded-2xl border border-border bg-card p-4 transition-all hover:border-emerald-500/30 hover:shadow-md"
                             >
-                              <p className="font-extrabold text-emerald-600">
+                              <p className="font-extrabold text-emerald-600 text-[18px]">
                                 {item.domicilio}
                               </p>
-                              <div className="mt-2 flex gap-2 text-xs font-bold text-muted-foreground">
+                              <div className="mt-2 flex gap-2 text-[14px] font-bold text-muted-foreground">
                                 <span className="rounded bg-muted px-2 py-1">
                                   Padrón: {item.numero_padron}
                                 </span>
                               </div>
-                              <p className="mt-3 text-[10px] font-black uppercase text-emerald-500/80">
+                              <p className="mt-3 text-[12px] font-black uppercase text-emerald-500/80">
                                 SUP. CAMPO: {item.sup_campo} M²
                               </p>
 
                               <CuotasList cuotas={item.cuotas} />
+                              <PlanPagoSection producto="tgi_rural" cuotas={item.cuotas} />
                             </div>
                           ))}
                         </div>
@@ -646,14 +676,15 @@ export function PersonaDetailModal({
                                   {item.tipo}
                                 </span>
                               </div>
-                              <p className="mt-1 font-bold text-sm">
+                              <p className="mt-1 font-bold text-[16px]">
                                 {item.marca} {item.modelo}
                               </p>
-                              <p className="mt-1 text-xs text-muted-foreground">
+                              <p className="mt-1 text-[14px] text-muted-foreground">
                                 {item.domicilio}
                               </p>
 
                               <CuotasList cuotas={item.cuotas} />
+                              <PlanPagoSection producto="patente" cuotas={item.cuotas} />
                             </div>
                           ))}
                         </div>

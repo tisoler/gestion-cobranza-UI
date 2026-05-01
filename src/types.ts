@@ -11,6 +11,7 @@ export interface Persona {
   /** [actual más reciente, … anteriores] */
   listaEmails?: string[];
   idEntidad?: number | null;
+  habilitado?: boolean;
   tgiUrbanos?: TgiUrbano[];
   tgiRurales?: TgiRural[];
   patentes?: Patente[];
@@ -63,6 +64,17 @@ export interface GestionUI {
   accion: string;
   contacto: string;
   observaciones: string;
+}
+
+export interface PlanPago {
+  id: number;
+  nombre: string;
+  producto: 'tgi_urbano' | 'tgi_rural' | 'patente';
+  numeroCuotas: number;
+  descuentoIntereses: number;
+  porcentajeAnticipo: number;
+  idEntidad?: number | null;
+  activo: boolean;
 }
 
 export type SortOption = 'deudaDesc' | 'cuotasDesc' | 'contactoDesc' | 'contactoAsc';
