@@ -96,16 +96,16 @@ export default function DashboardPage() {
         {/* Header */}
         <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-8">
           <div className="space-y-1">
-            <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-primary to-indigo-400 bg-clip-text text-transparent">
+            <h1 className="text-4xl text-center sm:text-left font-extrabold tracking-tight bg-gradient-to-r from-primary to-indigo-400 bg-clip-text text-transparent">
               Sr. Cobranza
             </h1>
-            <p className="text-base text-muted-foreground">
+            <p className="text-base text-muted-foreground text-center sm:text-left">
               {isLoading || entidadesLoading
                 ? 'Sincronizando datos...'
                 : 'Panel de control • Listado de personas'}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-end gap-3">
             <a
               href={MANUAL_PROCEDIMIENTO_URL}
               target="_blank"

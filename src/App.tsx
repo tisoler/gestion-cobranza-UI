@@ -18,7 +18,9 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route path="/" element={<DashboardPage />} />
-              <Route path="/planes-pago" element={<PlanesPagoPage />} />
+              <Route element={<ProtectedRoute allowedRoles={['admin', 'sys-admin']} />}>
+                <Route path="/planes-pago" element={<PlanesPagoPage />} />
+              </Route>
             </Route>
           </Route>
 

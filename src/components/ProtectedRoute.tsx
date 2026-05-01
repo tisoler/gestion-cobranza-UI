@@ -1,8 +1,12 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-export default function ProtectedRoute() {
-  const { firebaseUser, loading } = useAuth();
+interface ProtectedRouteProps {
+  allowedRoles?: string[];
+}
+
+export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
+  const { firebaseUser, user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -14,6 +18,14 @@ export default function ProtectedRoute() {
 
   if (!firebaseUser) {
     return <Navigate to="/login" replace />;
+  }
+
+  // If roles are specified, check if user has at least one of them
+  if (allowedRoles && user) {
+    const hasPermission = user.roles?.some(role => allowedRoles.includes(role));
+    if (!hasPermission) {
+      return <Navigate to="/" replace />;
+    }
   }
 
   return <Outlet />;
