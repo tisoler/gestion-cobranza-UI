@@ -128,11 +128,11 @@ export function PersonaList({ personas, isLoading = false, onSelectPersona }: Pe
                 </div>
                 <div className="flex-1 overflow-hidden">
                   <h4 className="truncate text-lg font-black tracking-tight text-foreground transition-colors group-hover:text-primary">
-                    {persona.apellido}, {persona.nombre}
+                    {persona.apellidoNombre || `${persona.apellido}, ${persona.nombre}`}
                   </h4>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest">DNI</span>
-                    <span className="text-sm font-mono font-medium">{persona.dni}</span>
+                    <span className="text-xs font-bold text-muted-foreground/60 uppercase tracking-widest">{persona.tipoDoc || 'DNI'}</span>
+                    <span className="text-sm font-mono font-medium">{persona.nroDoc}</span>
                   </div>
 
                   <div className="mt-4 grid grid-cols-2 gap-3">
@@ -204,9 +204,11 @@ export function PersonaList({ personas, isLoading = false, onSelectPersona }: Pe
                       </div>
                       <div>
                         <div className="font-bold text-foreground group-hover:text-primary transition-colors">
-                          {persona.apellido}, {persona.nombre}
+                          {persona.apellidoNombre || `${persona.apellido}, ${persona.nombre}`}
                         </div>
-                        <div className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">DNI {persona.dni}</div>
+                        <div className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+                          {persona.tipoDoc || 'DNI'} {persona.nroDoc}
+                        </div>
                       </div>
                     </div>
                   </td>

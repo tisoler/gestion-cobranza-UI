@@ -1,9 +1,17 @@
 export interface Persona {
   id: number;
-  dni: string;
+  tipoDoc?: string;
+  nroDoc?: string;
   cuit: string;
+  apellidoNombre?: string;
   nombre: string;
   apellido: string;
+  calleDomicilio?: string;
+  numeroDomicilio?: string;
+  pisoDomicilio?: string;
+  deptoDomicilio?: string;
+  localidad?: string;
+  provincia?: string;
   telefono: string;
   email: string;
   /** [actual más reciente, … anteriores] */
@@ -52,9 +60,11 @@ export interface Patente {
   id: number;
   domicilio: string;
   numero_patente: string;
-  marca: string;
-  modelo: string;
+  marca?: string;
+  modelo?: string;
+  marcaModelo?: string;
   tipo: string;
+  tramo?: string;
   cuotas?: Cuota[];
 }
 

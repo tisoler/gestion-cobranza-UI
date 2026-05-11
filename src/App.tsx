@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import PlanesPagoPage from './pages/PlanesPagoPage';
+import ImportacionesPage from './pages/ImportacionesPage';
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
               <Route path="/" element={<DashboardPage />} />
               <Route element={<ProtectedRoute allowedRoles={['admin', 'sys-admin']} />}>
                 <Route path="/planes-pago" element={<PlanesPagoPage />} />
+                <Route path="/importaciones" element={<ImportacionesPage />} />
               </Route>
             </Route>
           </Route>

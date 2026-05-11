@@ -1,21 +1,22 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  Users, 
-  Calculator, 
-  LogOut, 
-  Sun, 
-  Moon, 
-  ChevronLeft, 
+import {
+  Users,
+  Calculator,
+  LogOut,
+  Sun,
+  Moon,
+  ChevronLeft,
   ChevronRight,
   Menu,
-  User as UserIcon
+  User as UserIcon,
+  Upload
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { isMobile } from '../../lib/helpers';
 
 export function Sidebar() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const { user, firebaseUser, logout } = useAuth();
   const location = useLocation();
 
@@ -32,6 +33,12 @@ export function Sidebar() {
       title: 'Planes de Pago',
       href: '/planes-pago',
       icon: Calculator,
+      show: isAdmin
+    },
+    {
+      title: 'Importaciones',
+      href: '/importaciones',
+      icon: Upload,
       show: isAdmin
     }
   ];
@@ -53,37 +60,39 @@ export function Sidebar() {
   return (
     <>
       {/* Mobile Trigger */}
-      <button 
-        onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="fixed top-6 left-4 z-50 flex items-center justify-center rounded-xl bg-primary p-2 text-white shadow-lg md:hidden"
+      <button
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="fixed top-4 left-4 z-50 flex items-center justify-center rounded-xl bg-primary p-2 text-white shadow-lg md:hidden"
       >
         <Menu className="size-5" />
       </button>
 
-      {/* Sidebar Overlay (Mobile Only) */}
-      {isMobileOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
-          onClick={() => setIsMobileOpen(false)}
-        />
-      )}
+      {/* Sidebar Overlay */}
+      {
+        (!isCollapsed) && (
+          <div
+            className="fixed inset-0 z-40 backdrop-blur-xs"
+            onClick={() => setIsCollapsed(true)}
+          />
+        )
+      }
 
       {/* Sidebar Container */}
       <aside className={`
         fixed left-0 top-0 z-40 h-full bg-card border-r border-border transition-all duration-300 flex flex-col
         ${isCollapsed ? 'w-20' : 'w-64'}
-        ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+        ${isMobile && !isCollapsed ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
         {/* Logo Section */}
         <div className="p-6 flex items-center justify-between">
-          {!isCollapsed && (
+          {!isMobile && !isCollapsed && (
             <h2 className="text-xl font-black bg-gradient-to-r from-primary to-indigo-400 bg-clip-text text-transparent">
               Sr. Cobranza
             </h2>
           )}
-          <button 
+          <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className="hidden md:flex size-8 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground transition-colors"
+            className="hidden cursor-pointer md:flex size-8 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground transition-colors"
           >
             {isCollapsed ? <ChevronRight className="size-5" /> : <ChevronLeft className="size-5" />}
           </button>
@@ -95,11 +104,10 @@ export function Sidebar() {
             <Link
               key={item.href}
               to={item.href}
-              onClick={() => setIsMobileOpen(false)}
               className={`
                 flex items-center gap-3 rounded-xl p-2.5 transition-all group
-                ${location.pathname === item.href 
-                  ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                ${location.pathname === item.href
+                  ? 'bg-primary text-white shadow-lg shadow-primary/20'
                   : 'hover:bg-primary/10 hover:text-primary text-muted-foreground'}
               `}
             >
@@ -118,15 +126,15 @@ export function Sidebar() {
         <div className="p-4 border-t border-border space-y-2">
           {/* User Info */}
           <div className={`flex items-center gap-3 px-2 py-3 rounded-xl ${isCollapsed ? 'justify-center' : ''}`}>
-             <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <UserIcon className="size-5" />
-             </div>
-             {!isCollapsed && (
-               <div className="min-w-0 overflow-hidden">
-                 <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest truncate">Usuario</p>
-                 <p className="text-sm font-bold truncate">{firebaseUser?.email}</p>
-               </div>
-             )}
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <UserIcon className="size-5" />
+            </div>
+            {!isCollapsed && (
+              <div className="min-w-0 overflow-hidden">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest truncate">Usuario</p>
+                <p className="text-sm font-bold truncate">{firebaseUser?.email}</p>
+              </div>
+            )}
           </div>
 
           <ModeToggle />

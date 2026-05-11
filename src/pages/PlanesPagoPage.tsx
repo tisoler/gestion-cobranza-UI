@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Plus, Calculator, X, Loader2, ArrowLeft, Edit2, Save } from 'lucide-react';
+import { EntidadSelector } from '../components/EntidadSelector';
+import useSWR from 'swr';
 import { useAuth } from '../contexts/AuthContext';
 import { Navigate, Link } from 'react-router-dom';
 import { usePlanesPago } from '../hooks/use-planes-pago';
-import api from '../lib/api';
-import type { PlanPago } from '../types';
+import api, { fetcher } from '../lib/api';
+import type { PlanPago, Entidad } from '../types';
 
 export default function PlanesPagoPage() {
   const { user } = useAuth();
@@ -13,6 +15,25 @@ export default function PlanesPagoPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<PlanPago | null>(null);
   const [saving, setSaving] = useState(false);
+  const [entidadOverride, setEntidadOverride] = useState<number | null>(null);
+
+  const { data: entidades, isLoading: entidadesLoading } = useSWR<Entidad[]>(
+    '/entidades',
+    fetcher,
+    { revalidateOnFocus: false }
+  );
+
+  const selectedEntidadId = (() => {
+    if (!entidades || entidades.length === 0) return null;
+    const ids = new Set(entidades.map((e) => e.id));
+    if (entidadOverride != null && ids.has(entidadOverride)) return entidadOverride;
+    const storedRaw = localStorage.getItem('currentEntidadId');
+    const stored = storedRaw != null ? parseInt(storedRaw, 10) : NaN;
+    if (Number.isFinite(stored) && ids.has(stored)) return stored;
+    const fromUser = user?.idEntidad != null ? Number(user.idEntidad) : NaN;
+    if (Number.isFinite(fromUser) && ids.has(fromUser)) return fromUser;
+    return entidades[0].id;
+  })();
 
   const initialForm = {
     nombre: '',
@@ -20,7 +41,8 @@ export default function PlanesPagoPage() {
     numeroCuotas: 12,
     descuentoIntereses: 0.8,
     porcentajeAnticipo: 0.3,
-    activo: true
+    activo: true,
+    idEntidad: selectedEntidadId || undefined
   };
 
   const [formData, setFormData] = useState(initialForm);
@@ -33,7 +55,8 @@ export default function PlanesPagoPage() {
         numeroCuotas: editingPlan.numeroCuotas,
         descuentoIntereses: editingPlan.descuentoIntereses,
         porcentajeAnticipo: editingPlan.porcentajeAnticipo,
-        activo: editingPlan.activo
+        activo: editingPlan.activo,
+        idEntidad: editingPlan.idEntidad
       });
       setIsModalOpen(true);
     }
@@ -77,7 +100,7 @@ export default function PlanesPagoPage() {
 
   const openAddModal = () => {
     setEditingPlan(null);
-    setFormData(initialForm);
+    setFormData({ ...initialForm, idEntidad: selectedEntidadId || undefined });
     setIsModalOpen(true);
   };
 
@@ -91,65 +114,83 @@ export default function PlanesPagoPage() {
     return <Navigate to="/" replace />;
   }
 
-  const sortedPlanes = [...planes].sort((a, b) => 
+  const sortedPlanes = [...planes].sort((a, b) =>
     a.producto.localeCompare(b.producto) || a.numeroCuotas - b.numeroCuotas
   );
 
   return (
     <div className="bg-background text-foreground transition-colors duration-300">
-      <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
-        <div className="mb-6 invisible md:visible">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-primary transition-colors"
-          >
-            <ArrowLeft className="size-4" />
-            Volver al Panel
-          </Link>
-        </div>
-        <div className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-8">
-          <div>
-            <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-500 via-primary to-indigo-400 bg-clip-text text-transparent">
-              Configuración de Planes
-            </h1>
-            <p className="text-muted-foreground mt-2 font-medium">Define las facilidades de financiación para cada producto.</p>
+      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
+
+        {/* --- HEADER SUPERIOR --- */}
+        <div className="mb-10 flex flex-col gap-8 border-b border-border pb-8">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2">
+              <Link
+                to="/"
+                className="pl-10 md:pl-0 inline-flex items-center gap-2 text-md font-bold text-muted-foreground hover:text-primary transition-colors"
+              >
+                <ArrowLeft className="size-4" />
+                Volver
+              </Link>
+              <div className="mt-2">
+                <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-500 via-primary to-indigo-400 bg-clip-text text-transparent">
+                  Configuración de Planes
+                </h1>
+                <p className="text-muted-foreground mt-1 font-medium italic">Define las facilidades para la entidad activa.</p>
+              </div>
+            </div>
+
+            <div className="w-full sm:w-auto">
+              <EntidadSelector
+                entidades={entidades}
+                isLoading={entidadesLoading}
+                selectedId={selectedEntidadId}
+                onChange={(id) => {
+                  localStorage.setItem('currentEntidadId', String(id));
+                  setEntidadOverride(id);
+                }}
+                className="w-full sm:min-w-[280px]"
+              />
+            </div>
           </div>
+        </div>
+
+        {/* --- BARRA DE ACCIONES (Filtro + Agregar) --- */}
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative flex-1 lg:max-w-lg">
+            <div className="group relative">
+              <label className="absolute -top-[6px] left-3 z-10 bg-background px-1 text-[9px] font-black uppercase tracking-widest text-primary">
+                Filtrar por Producto
+              </label>
+              <select
+                value={filterProducto}
+                onChange={(e) => setFilterProducto(e.target.value)}
+                className="h-11 w-full cursor-pointer appearance-none rounded-xl border border-border bg-card/50 py-2 pl-4 pr-11 text-sm font-semibold shadow-sm transition-all hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="">Todos los productos</option>
+                <option value="tgi_urbano">TGI Urbano</option>
+                <option value="tgi_rural">TGI Rural</option>
+                <option value="patente">Patentes</option>
+              </select>
+            </div>
+          </div>
+
           <button
             onClick={openAddModal}
-            className="flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:bg-primary/90 active:scale-95"
+            className="flex items-center justify-center gap-2 rounded-2xl bg-primary px-8 py-3 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:bg-primary/90 active:scale-95"
           >
             <Plus className="size-5" /> Nuevo Plan
           </button>
-        </div>
-
-        <div className="mb-8 flex flex-col gap-4 rounded-2xl border border-border bg-card/90 p-5 shadow-sm backdrop-blur-sm md:flex-row md:items-center md:justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-widest text-primary/80">Criterio</p>
-            <p className="text-sm text-muted-foreground">
-              Filtra los planes de pago por tipo de producto.
-            </p>
-          </div>
-          <div className="relative w-full min-w-0 md:max-w-md">
-            <select
-              value={filterProducto}
-              onChange={(e) => setFilterProducto(e.target.value)}
-              className="h-11 w-full cursor-pointer appearance-none rounded-xl border border-border bg-background py-2 pl-4 pr-11 text-sm font-semibold shadow-sm ring-offset-background transition-all hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-            >
-              <option value="">Todos los productos</option>
-              <option value="tgi_urbano">TGI Urbano</option>
-              <option value="tgi_rural">TGI Rural</option>
-              <option value="patente">Patentes</option>
-            </select>
-          </div>
         </div>
 
         {/* --- MODAL DE AGREGAR/EDITAR --- */}
         {isModalOpen && (
           <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/80 backdrop-blur-sm p-4 sm:items-center animate-in fade-in duration-300">
             <div className="fixed inset-0" onClick={closeModal} />
-            
+
             <div className="relative my-auto w-full max-w-2xl rounded-[2rem] border border-border bg-card p-6 shadow-2xl animate-in zoom-in-95 duration-300 md:p-10 sm:rounded-[2.5rem]">
-              <button 
+              <button
                 onClick={closeModal}
                 className="absolute right-4 top-4 rounded-full p-2 text-muted-foreground hover:bg-muted transition-colors md:right-6 md:top-6"
               >
@@ -174,7 +215,7 @@ export default function PlanesPagoPage() {
                     placeholder="Ej: Plan Verano 12 cuotas"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground/60 ml-1">Producto</label>
                   <select
@@ -227,6 +268,21 @@ export default function PlanesPagoPage() {
                   />
                 </div>
 
+                {/* Selección de Entidad (solo sys-admin puede cambiarla manualmente) */}
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground/60 ml-1">Entidad Asignada</label>
+                  <select
+                    value={formData.idEntidad ?? ''}
+                    disabled={!user?.roles?.includes('sys-admin')}
+                    onChange={e => setFormData({ ...formData, idEntidad: parseInt(e.target.value, 10) })}
+                    className="w-full rounded-2xl border border-border bg-background px-5 py-4 text-sm font-bold shadow-sm outline-none transition-all focus:border-primary/40 focus:ring-4 focus:ring-primary/10 appearance-none disabled:opacity-50"
+                  >
+                    {entidades?.map(ent => (
+                      <option key={ent.id} value={ent.id}>{ent.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="mt-4 flex gap-4 md:col-span-2">
                   <button
                     type="button"
@@ -255,6 +311,10 @@ export default function PlanesPagoPage() {
             <div className="col-span-full flex flex-col items-center justify-center py-20">
               <Loader2 className="size-10 animate-spin text-primary mb-4" />
               <p className="font-bold text-muted-foreground">Cargando planes...</p>
+            </div>
+          ) : sortedPlanes.length === 0 ? (
+            <div className="col-span-full text-center py-20 rounded-[2.5rem] border border-dashed border-border bg-card font-bold text-muted-foreground">
+              No se encontraron planes para esta entidad.
             </div>
           ) : sortedPlanes.map(plan => (
             <div
@@ -324,7 +384,7 @@ export default function PlanesPagoPage() {
               ) : sortedPlanes.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-20 text-center font-bold text-muted-foreground">
-                    No se encontraron planes.
+                    No se encontraron planes para esta entidad.
                   </td>
                 </tr>
               ) : sortedPlanes.map(plan => (

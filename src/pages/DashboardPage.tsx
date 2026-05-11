@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
-import { Search, RotateCcw, Loader2, ChevronDown } from 'lucide-react';
+import { Search, RotateCcw, Loader2 } from 'lucide-react';
+import { EntidadSelector } from '../components/EntidadSelector';
 import { PersonaList } from '../components/persona-list';
 import { PersonaDetailModal } from '../components/persona-detail-modal';
 import { usePersonas } from '../hooks/use-personas';
@@ -30,7 +31,7 @@ export default function DashboardPage() {
   const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
   const [entidadOverride, setEntidadOverride] = useState<number | null>(null);
 
-  const { data: entidades, isLoading: entidadesLoading, error: entidadesError } = useSWR<Entidad[]>(
+  const { data: entidades, isLoading: entidadesLoading } = useSWR<Entidad[]>(
     '/entidades',
     fetcher,
     {
@@ -92,78 +93,50 @@ export default function DashboardPage() {
 
   return (
     <div className="bg-background text-foreground transition-colors duration-300">
-      <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-8">
-          <div className="space-y-1">
-            <h1 className="text-4xl text-center sm:text-left font-extrabold tracking-tight bg-gradient-to-r from-primary to-indigo-400 bg-clip-text text-transparent">
-              Sr. Cobranza
-            </h1>
-            <p className="text-base text-muted-foreground text-center sm:text-left">
-              {isLoading || entidadesLoading
-                ? 'Sincronizando datos...'
-                : 'Panel de control • Listado de personas'}
-            </p>
-          </div>
-          <div className="flex items-center justify-end gap-3">
-            <a
-              href={MANUAL_PROCEDIMIENTO_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold shadow-sm transition-all hover:bg-primary/10 hover:text-primary hover:border-primary/30 active:scale-95"
-            >
-              Manual de procedimiento
-            </a>
+      <div className="mx-auto max-w-7xl px-4 py-7 md:px-6 lg:px-8">
+
+        {/* --- CABECERA PRINCIPAL UNIFICADA --- */}
+        <div className="mb-10 flex flex-col gap-8 border-b border-border pb-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-1">
+              <h1 className="text-4xl pl-10 md:pl-0 font-extrabold tracking-tight bg-gradient-to-r from-primary to-indigo-400 bg-clip-text text-transparent">
+                Sr. Cobranza
+              </h1>
+              <p className="text-base text-muted-foreground pl-10 md:pl-0 font-medium italic">
+                {isLoading || entidadesLoading
+                  ? 'Sincronizando datos...'
+                  : 'Panel de control • Listado de personas'}
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-7 lg:gap-4 lg:flex-row lg:items-center w-full lg:w-auto">
+              <a
+                href={MANUAL_PROCEDIMIENTO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-xl whitespace-nowrap border border-border bg-card px-4 py-2.5 text-sm font-semibold shadow-sm transition-all hover:bg-primary/10 hover:text-primary hover:border-primary/30 active:scale-95"
+              >
+                Manual de procedimiento
+              </a>
+
+              <EntidadSelector
+                entidades={entidades}
+                isLoading={entidadesLoading}
+                selectedId={selectedEntidadId}
+                onChange={(id) => {
+                  localStorage.setItem('currentEntidadId', String(id));
+                  setEntidadOverride(id);
+                  setSelectedPersona(null);
+                  setPage(1);
+                }}
+                className="w-full sm:min-w-[280px]"
+              />
+            </div>
           </div>
         </div>
 
-        {/* Entidad activa */}
-        <div className="mb-8 flex flex-col gap-4 rounded-2xl border border-border bg-card/90 p-5 shadow-sm backdrop-blur-sm md:flex-row md:items-center md:justify-between">
-          <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-widest text-primary/80">Entidad</p>
-            <p className="text-sm text-muted-foreground">
-              El listado y la búsqueda se filtran según la entidad seleccionada.
-            </p>
-          </div>
-          <div className="relative w-full min-w-0 md:max-w-md">
-            {entidadesLoading ? (
-              <div className="flex h-11 items-center gap-2 rounded-xl border border-dashed border-border px-4 text-sm text-muted-foreground">
-                <Loader2 className="size-4 shrink-0 animate-spin text-primary" />
-                Cargando entidades...
-              </div>
-            ) : entidadesError ? (
-              <p className="text-sm font-medium text-destructive">No se pudieron cargar las entidades.</p>
-            ) : !entidades?.length ? (
-              <p className="text-sm text-muted-foreground">No tiene entidades asignadas.</p>
-            ) : (
-              <>
-                <select
-                  aria-label="Entidad"
-                  value={selectedEntidadId ?? ''}
-                  onChange={(e) => {
-                    const id = parseInt(e.target.value, 10);
-                    if (!Number.isFinite(id)) return;
-                    localStorage.setItem('currentEntidadId', String(id));
-                    setEntidadOverride(id);
-                    setSelectedPersona(null);
-                    setPage(1);
-                  }}
-                  className="h-11 w-full cursor-pointer appearance-none rounded-xl border border-border bg-background py-2 pl-4 pr-11 text-sm font-semibold shadow-sm ring-offset-background transition-all hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                >
-                  {entidades.map((en) => (
-                    <option key={en.id} value={en.id}>
-                      {en.nombre}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="mb-8 rounded-2xl border border-primary/10 bg-primary/5 p-6 shadow-sm backdrop-blur-sm">
+        {/* --- FILTROS DE BÚSQUEDA --- */}
+        <div className="mb-8 rounded-2xl border border-primary/10 bg-primary/5 p-6 shadow-sm backdrop-blur-sm transition-all hover:shadow-md">
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="size-2 rounded-full bg-primary" />
@@ -323,19 +296,23 @@ export default function DashboardPage() {
 
 function FilterInput({ label, value, onChange, placeholder, icon }: { label: string, value: string, onChange: (v: string) => void, placeholder: string, icon?: React.ReactNode }) {
   return (
-    <div className="space-y-1.5">
-      <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground/80 ml-1">{label}</label>
-      <div className="relative">
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 transition-colors">
-          {icon}
+    <div className="space-y-1.5 min-w-0">
+      <div className="group relative">
+        <label className="absolute -top-[6px] left-3 z-10 bg-background px-1 text-[9px] font-black uppercase tracking-widest text-primary transition-colors group-focus-within:text-primary">
+          {label}
+        </label>
+        <div className="relative">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 transition-colors group-focus-within:text-primary/60">
+            {icon}
+          </div>
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+            className="w-full rounded-xl border border-border bg-card/50 py-2.5 pl-10 pr-4 text-sm font-medium shadow-sm transition-all placeholder:text-muted-foreground/30 focus:border-primary/40 focus:outline-none focus:ring-4 focus:ring-primary/10"
+          />
         </div>
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="w-full rounded-xl border border-border bg-card py-2.5 pl-10 pr-4 text-sm shadow-sm transition-all placeholder:text-muted-foreground/40 focus:border-primary/40 focus:outline-none focus:ring-4 focus:ring-primary/10"
-        />
       </div>
     </div>
   );

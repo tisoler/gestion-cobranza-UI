@@ -22,6 +22,7 @@ import type { Persona, GestionUI, Cuota } from "../types";
 import api from "../lib/api";
 import { useSWRConfig } from "swr";
 import { PlanPagoSection } from "./plan-pago-section";
+import { isMobile } from "../lib/helpers";
 
 function contactListsFromPersona(p: Persona) {
   const phones =
@@ -224,9 +225,7 @@ export function PersonaDetailModal({
   const openWhatsApp = (rawPhone: string | undefined) => {
     const phone = (rawPhone || "").replace(/\D/g, "");
     if (!phone) return;
-    const isMobile =
-      typeof navigator !== "undefined" &&
-      /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
     const url = isMobile
       ? `whatsapp://send?phone=${phone}`
       : `https://web.whatsapp.com/send?phone=${phone}`;
@@ -322,16 +321,29 @@ export function PersonaDetailModal({
               <User className="size-8" />
             </div>
             <div>
-              <h2 className="text-2xl font-black tracking-tight">
-                {persona.apellido}, {persona.nombre}
+              <h2 className="text-2xl font-black tracking-tight leading-tight">
+                {persona.apellidoNombre || `${persona.apellido}, ${persona.nombre}`}
               </h2>
-              <div className="mt-1 flex items-center gap-2 text-sm font-bold text-muted-foreground">
-                <span className="rounded bg-muted px-2 py-0.5">
-                  DNI {persona.dni}
-                </span>
-                <span className="rounded bg-muted px-2 py-0.5">
-                  CUIT {persona.cuit}
-                </span>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm font-bold text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-lg bg-primary/10 text-primary text-[13px] px-2 py-0.5 uppercase tracking-wider">
+                    {persona.tipoDoc || 'DNI'} {persona.nroDoc}
+                  </span>
+                  <span className="rounded-lg bg-muted px-2 py-0.5 text-[13px] uppercase tracking-wider">
+                    CUIT {persona.cuit}
+                  </span>
+                </div>
+
+                {(persona.calleDomicilio || persona.localidad) && (
+                  <div className="flex items-center gap-2 text-muted-foreground/70 border-l border-border pl-4">
+                    <Home className="size-3.5" />
+                    <span className="truncate max-w-[250px] sm:max-w-none">
+                      {persona.calleDomicilio} {persona.numeroDomicilio}
+                      {persona.localidad && `, ${persona.localidad}`}
+                      {persona.provincia && `, ${persona.provincia}`}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -672,12 +684,19 @@ export function PersonaDetailModal({
                                 <p className="font-black text-amber-600 text-lg uppercase tracking-tighter">
                                   {item.numero_patente}
                                 </p>
-                                <span className="text-[10px] font-bold bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full">
-                                  {item.tipo}
-                                </span>
+                                <div className="flex flex-col gap-1 items-end">
+                                  <span className="text-[10px] font-bold bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full">
+                                    {item.tipo}
+                                  </span>
+                                  {item.tramo && (
+                                    <span className="text-[9px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                                      Tramo: {item.tramo}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                               <p className="mt-1 font-bold text-[16px]">
-                                {item.marca} {item.modelo}
+                                {item.marcaModelo || `${item.marca} ${item.modelo}`}
                               </p>
                               <p className="mt-1 text-[14px] text-muted-foreground">
                                 {item.domicilio}
