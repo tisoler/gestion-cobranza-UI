@@ -2,7 +2,7 @@ import { ChevronRight, User, History, Loader2 } from 'lucide-react';
 import { useSWRConfig } from 'swr';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../lib/api';
-import type { Persona } from '../types';
+import type { Patente, Persona, TgiRural, TgiUrbano } from '../types';
 
 interface PersonaListProps {
   personas: Persona[];
@@ -90,19 +90,45 @@ export function PersonaList({ personas, isLoading = false, onSelectPersona }: Pe
   };
 
   const getPersonaStats = (persona: Persona) => {
-    const allCuotas = [
-      ...(persona.tgiUrbanos?.flatMap(p => p.cuotas || []) || []),
-      ...(persona.tgiRurales?.flatMap(p => p.cuotas || []) || []),
-      ...(persona.patentes?.flatMap(p => p.cuotas || []) || []),
-    ];
+    const patentesItems = persona.patentes || [];
+    const tgiUrbanosItems = persona.tgiUrbanos || [];
+    const tgiRuralesItems = persona.tgiRurales || [];
 
-    const totalDeuda = allCuotas.reduce((acc, c) => acc + Number(c.capital) + Number(c.intereses), 0);
+    const getProductStats = (items: (Patente | TgiUrbano | TgiRural)[]) => {
+      let sumatoriaCuotas = 0;
+      let maxCuotasEnUnItem = 0;
+
+      items.forEach(item => {
+        // Sumamos el valor de cantidad_cuotas de todas las cuotas asociadas al item
+        const itemSumaCuotas = item.cuotas?.reduce((acc, c) => acc + (Number(c.cantidad_cuotas) || 0), 0) || 0;
+        sumatoriaCuotas += itemSumaCuotas;
+
+        // Buscamos el mayor valor individual de cantidad_cuotas entre las cuotas del item
+        const itemMaxIndividual = item.cuotas?.reduce((max, c) => Math.max(max, Number(c.cantidad_cuotas) || 0), 0) || 0;
+        if (itemMaxIndividual > maxCuotasEnUnItem) maxCuotasEnUnItem = itemMaxIndividual;
+      });
+
+      return { totalCuotas: sumatoriaCuotas, maxCuotasItem: maxCuotasEnUnItem };
+    };
+
+    const patentesStats = getProductStats(patentesItems);
+    const tgiUrbanoStats = getProductStats(tgiUrbanosItems);
+    const tgiRuralStats = getProductStats(tgiRuralesItems);
+
+    const totalDeuda = [
+      ...patentesItems.flatMap(p => p.cuotas || []),
+      ...tgiUrbanosItems.flatMap(p => p.cuotas || []),
+      ...tgiRuralesItems.flatMap(p => p.cuotas || []),
+    ].reduce((acc, c) => acc + Number(c.capital) + Number(c.intereses), 0);
+
     const lastGestion = persona.gestiones && persona.gestiones.length > 0
       ? [...persona.gestiones].sort((a, b) => new Date(b.fecha_hora).getTime() - new Date(a.fecha_hora).getTime())[0]
       : null;
 
     return {
-      cuotasCount: allCuotas.length,
+      patentesStats,
+      tgiUrbanoStats,
+      tgiRuralStats,
       totalDeuda,
       lastGestion,
     };
@@ -141,8 +167,10 @@ export function PersonaList({ personas, isLoading = false, onSelectPersona }: Pe
                       <p className="text-sm font-black text-destructive">{formatCurrency(stats.totalDeuda)}</p>
                     </div>
                     <div className="rounded-xl bg-muted/50 p-2 text-center">
-                      <p className="text-[10px] font-black uppercase text-muted-foreground/60">Cuotas</p>
-                      <p className="text-sm font-black text-primary">{stats.cuotasCount}</p>
+                      <p className="text-[10px] font-black uppercase text-muted-foreground/60">Prod/Cuotas</p>
+                      <p className="text-[10px] font-bold text-primary">
+                        PAT: {stats.patentesStats.totalCuotas} | TGI-U: {stats.tgiUrbanoStats.totalCuotas} | TGI-R: {stats.tgiRuralStats.totalCuotas}
+                      </p>
                     </div>
                   </div>
 
@@ -177,20 +205,46 @@ export function PersonaList({ personas, isLoading = false, onSelectPersona }: Pe
       <div className="hidden lg:block overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
         <table className="w-full text-left border-collapse">
           <thead>
+            {/* Grouped Header */}
+            <tr className="bg-muted/50">
+              <th colSpan={2}></th>
+              <th colSpan={3} className="px-6 pt-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center bg-primary/[0.08]">
+                Cuotas adeudadas
+              </th>
+              <th colSpan={isSysAdminOrAdmin ? 3 : 2}></th>
+            </tr>
             <tr className="bg-muted/30 border-b border-border">
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">Persona</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground text-right">Deuda</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground text-center">Cuotas</th>
-              <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">Último Contacto</th>
+              <th className="px-6 py-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">Persona</th>
+              <th className="px-6 py-2 text-xs font-bold uppercase tracking-widest text-muted-foreground text-left">Deuda</th>
+              <th className="px-6 py-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center bg-primary/[0.08]">Patentes</th>
+              <th className="px-6 py-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center bg-primary/[0.08]">TGI Urbano</th>
+              <th className="px-6 py-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center bg-primary/[0.08]">TGI Rural</th>
+              <th className="px-6 py-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">Último Contacto</th>
               {isSysAdminOrAdmin && (
-                <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-muted-foreground text-center">Habilitado</th>
+                <th className="px-6 py-2 text-xs font-bold uppercase tracking-widest text-muted-foreground text-center">Habilitado</th>
               )}
-              <th className="px-6 py-4 w-10"></th>
+              <th className="px-6 py-2 w-10"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {personas.map((persona) => {
               const stats = getPersonaStats(persona);
+
+              const ProductCell = ({ productStats }: { productStats: { totalCuotas: number, maxCuotasItem: number } }) => (
+                <td className="px-4 py-4 text-center">
+                  <div className={`flex flex-col items-center justify-center p-1.5 rounded-xl border ${productStats.totalCuotas > 0 ? 'bg-primary/[0.03] border-primary/20' : 'bg-muted/30 border-transparent opacity-40'}`}>
+                    <span className={`text-sm font-black ${productStats.totalCuotas > 0 ? 'text-primary' : 'text-muted-foreground'}`}>
+                      {productStats.totalCuotas}
+                    </span>
+                    {productStats.totalCuotas > 0 && (
+                      <span className="text-[9px] font-bold text-muted-foreground tracking-tighter uppercase">
+                        Máx: {productStats.maxCuotasItem}
+                      </span>
+                    )}
+                  </div>
+                </td>
+              );
+
               return (
                 <tr
                   key={persona.id}
@@ -206,7 +260,7 @@ export function PersonaList({ personas, isLoading = false, onSelectPersona }: Pe
                         <div className="font-bold text-foreground group-hover:text-primary transition-colors">
                           {persona.apellidoNombre || `${persona.apellido}, ${persona.nombre}`}
                         </div>
-                        <div className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+                        <div className="text-[12px] font-bold text-muted-foreground/60 uppercase tracking-widest">
                           {persona.tipoDoc || 'DNI'} {persona.nroDoc}
                         </div>
                       </div>
@@ -217,11 +271,11 @@ export function PersonaList({ personas, isLoading = false, onSelectPersona }: Pe
                       {formatCurrency(stats.totalDeuda)}
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-center">
-                    <span className={`inline-flex items-center justify-center size-8 rounded-lg font-black text-xs ${stats.cuotasCount > 0 ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground/40'}`}>
-                      {stats.cuotasCount}
-                    </span>
-                  </td>
+
+                  <ProductCell productStats={stats.patentesStats} />
+                  <ProductCell productStats={stats.tgiUrbanoStats} />
+                  <ProductCell productStats={stats.tgiRuralStats} />
+
                   <td className="px-6 py-4">
                     {stats.lastGestion ? (
                       <div className="flex flex-col">

@@ -10,15 +10,35 @@ import {
   ChevronRight,
   Menu,
   User as UserIcon,
-  Upload
+  Upload,
+  BarChart3,
+  Bell,
+  History
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { isMobile } from '../../lib/helpers';
+import { useNotificacionesNoLeidasCount } from '../../hooks/use-notificaciones';
+
+
+const ModeToggle = ({ isCollapsed }: { isCollapsed: boolean }) => (
+  <button
+    onClick={() => document.documentElement.classList.toggle('dark')}
+    className="flex w-full items-center gap-3 rounded-xl p-2.5 transition-all hover:bg-primary/10 hover:text-primary group"
+    title="Cambiar tema"
+  >
+    <div className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground group-hover:bg-primary/20 group-hover:text-primary transition-colors">
+      <Sun className="size-5 hidden dark:block text-amber-500" />
+      <Moon className="size-5 block dark:hidden text-indigo-600" />
+    </div>
+    {!isCollapsed && <span className="text-sm font-semibold">Cambiar Tema</span>}
+  </button>
+);
 
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const { user, firebaseUser, logout } = useAuth();
   const location = useLocation();
+  const { count: notificacionesNoLeidas } = useNotificacionesNoLeidasCount();
 
   const isAdmin = user?.roles?.includes('admin') || user?.roles?.includes('sys-admin');
 
@@ -28,6 +48,12 @@ export function Sidebar() {
       href: '/',
       icon: Users,
       show: true
+    },
+    {
+      title: 'Historial Gestiones',
+      href: '/historial-gestiones',
+      icon: History,
+      show: isAdmin
     },
     {
       title: 'Planes de Pago',
@@ -40,22 +66,14 @@ export function Sidebar() {
       href: '/importaciones',
       icon: Upload,
       show: isAdmin
+    },
+    {
+      title: 'Reportes',
+      href: '/reportes',
+      icon: BarChart3,
+      show: isAdmin
     }
   ];
-
-  const ModeToggle = () => (
-    <button
-      onClick={() => document.documentElement.classList.toggle('dark')}
-      className="flex w-full items-center gap-3 rounded-xl p-2.5 transition-all hover:bg-primary/10 hover:text-primary group"
-      title="Cambiar tema"
-    >
-      <div className="flex size-9 items-center justify-center rounded-lg bg-muted text-muted-foreground group-hover:bg-primary/20 group-hover:text-primary transition-colors">
-        <Sun className="size-5 hidden dark:block text-amber-500" />
-        <Moon className="size-5 block dark:hidden text-indigo-600" />
-      </div>
-      {!isCollapsed && <span className="text-sm font-semibold">Cambiar Tema</span>}
-    </button>
-  );
 
   return (
     <>
@@ -87,7 +105,7 @@ export function Sidebar() {
         <div className="p-6 flex items-center justify-between">
           {!isMobile && !isCollapsed && (
             <h2 className="text-xl font-black bg-gradient-to-r from-primary to-indigo-400 bg-clip-text text-transparent">
-              Sr. Cobranza
+              Astre
             </h2>
           )}
           <button
@@ -122,8 +140,35 @@ export function Sidebar() {
           ))}
         </nav>
 
-        {/* Bottom Section: User, Mode, Logout */}
+        {/* Bottom Section: Notifications, User, Mode, Logout */}
         <div className="p-4 border-t border-border space-y-2">
+          <Link
+            to="/notificaciones"
+            className={`
+              flex items-center gap-3 rounded-xl p-2.5 transition-all group relative
+              ${location.pathname === '/notificaciones'
+                ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                : 'hover:bg-primary/10 hover:text-primary text-muted-foreground'}
+            `}
+          >
+            <div className={`
+              flex size-9 items-center justify-center rounded-lg transition-colors relative
+              ${location.pathname === '/notificaciones' ? 'bg-white/20' : 'bg-muted group-hover:bg-primary/20'}
+            `}>
+              <Bell className="size-5" />
+              {notificacionesNoLeidas > 0 && (
+                <span className="absolute -right-1 -top-1 flex min-w-[18px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-black text-white">
+                  {notificacionesNoLeidas > 99 ? '99+' : notificacionesNoLeidas}
+                </span>
+              )}
+            </div>
+            {!isCollapsed && (
+              <span className="text-sm font-bold uppercase tracking-wider">
+                Notificaciones
+              </span>
+            )}
+          </Link>
+
           {/* User Info */}
           <div className={`flex items-center gap-3 px-2 py-3 rounded-xl ${isCollapsed ? 'justify-center' : ''}`}>
             <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -137,7 +182,7 @@ export function Sidebar() {
             )}
           </div>
 
-          <ModeToggle />
+          <ModeToggle isCollapsed={isCollapsed} />
 
           <button
             onClick={logout}

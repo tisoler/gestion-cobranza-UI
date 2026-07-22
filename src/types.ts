@@ -40,9 +40,9 @@ export interface TgiUrbano {
   domicilio: string;
   numero_padron: string;
   codigo_web: string;
-  direccion_padron: string;
   sup_terreno: number;
   mts_frente: number;
+  manzana: string;
   cuotas?: Cuota[];
 }
 
@@ -51,8 +51,8 @@ export interface TgiRural {
   domicilio: string;
   numero_padron: string;
   codigo_web: string;
-  direccion_padron: string;
-  sup_campo: number;
+  sup_hectarea: number;
+  manzana: string;
   cuotas?: Cuota[];
 }
 
@@ -70,10 +70,48 @@ export interface Patente {
 
 export interface GestionUI {
   id: number;
+  idPersona?: number;
   fecha_hora: string;
   accion: string;
   contacto: string;
   observaciones: string;
+  usuario?: string;
+  mencionado_uid?: string;
+}
+
+export interface GestionHistorial {
+  id: number;
+  idPersona: number;
+  fecha_hora: string;
+  accion: string;
+  contacto: string;
+  observaciones: string;
+  usuario?: string;
+  persona: {
+    id: number;
+    idEntidad: number;
+    apellidoNombre: string;
+  } | null;
+}
+
+export interface UsuarioEntidad {
+  uid: string;
+  email: string;
+  nombre: string;
+}
+
+export interface Notificacion {
+  id: number;
+  id_destinatario: string;
+  id_emisor: string;
+  email_emisor?: string;
+  id_entidad: number;
+  id_gestion?: number;
+  id_persona: number;
+  persona_nombre?: string;
+  mensaje: string;
+  leida: boolean;
+  fecha_creacion: string;
 }
 
 export interface PlanPago {
@@ -87,7 +125,7 @@ export interface PlanPago {
   activo: boolean;
 }
 
-export type SortOption = 'deudaDesc' | 'cuotasDesc' | 'contactoDesc' | 'contactoAsc';
+export type SortOption = 'deudaDesc' | 'patentesDesc' | 'tgiUrbanoDesc' | 'tgiRuralDesc' | 'contactoDesc' | 'contactoAsc';
 
 export interface Entidad {
   id: number;

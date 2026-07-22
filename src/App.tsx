@@ -7,6 +7,9 @@ import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import PlanesPagoPage from './pages/PlanesPagoPage';
 import ImportacionesPage from './pages/ImportacionesPage';
+import ReportesPage from './pages/Reportes/ReportesPage';
+import NotificacionesPage from './pages/NotificacionesPage';
+import HistorialGestionesPage from './pages/HistorialGestionesPage';
 
 export default function App() {
   return (
@@ -19,9 +22,15 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route path="/" element={<DashboardPage />} />
+              <Route path="/notificaciones" element={<NotificacionesPage />} />
               <Route element={<ProtectedRoute allowedRoles={['admin', 'sys-admin']} />}>
+                <Route
+                  path="/historial-gestiones"
+                  element={<HistorialGestionesPage />}
+                />
                 <Route path="/planes-pago" element={<PlanesPagoPage />} />
                 <Route path="/importaciones" element={<ImportacionesPage />} />
+                <Route path="/reportes" element={<ReportesPage />} />
               </Route>
             </Route>
           </Route>

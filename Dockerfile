@@ -17,7 +17,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 # Variables de entorno para el build (se pasan como build args)
-ARG VITE_API_URL=https://api.cobros.tisoler.net.ar/api
+ARG VITE_API_URL=https://api.cobros.astre.net.ar/api
 ENV VITE_API_URL=$VITE_API_URL
 
 ARG VITE_FIREBASE_API_KEY

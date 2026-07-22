@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import useSWR from 'swr';
 import { Search, RotateCcw, Loader2 } from 'lucide-react';
 import { EntidadSelector } from '../components/EntidadSelector';
 import { PersonaList } from '../components/persona-list';
 import { PersonaDetailModal } from '../components/persona-detail-modal';
-import { usePersonas } from '../hooks/use-personas';
+import { MarcoRegulatorioModal } from '../components/MarcoRegulatorioModal';
+import { usePersonas, usePersona } from '../hooks/use-personas';
 import { useAuth } from '../contexts/AuthContext';
 import { fetcher } from '../lib/api';
 import type { Entidad, Persona, SortOption } from '../types';
@@ -14,6 +16,10 @@ const MANUAL_PROCEDIMIENTO_URL =
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const personaIdFromUrl = searchParams.get('persona');
+  const parsedPersonaId =
+    personaIdFromUrl != null ? parseInt(personaIdFromUrl, 10) : null;
   const [filters, setFilters] = useState({
     dni: '',
     cuit: '',
@@ -30,6 +36,7 @@ export default function DashboardPage() {
   const [page, setPage] = useState(1);
   const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
   const [entidadOverride, setEntidadOverride] = useState<number | null>(null);
+  const [isMarcoRegulatorioOpen, setIsMarcoRegulatorioOpen] = useState(false);
 
   const { data: entidades, isLoading: entidadesLoading } = useSWR<Entidad[]>(
     '/entidades',
@@ -75,6 +82,20 @@ export default function DashboardPage() {
     page
   });
 
+  const { persona: personaFromNotificacion } = usePersona(
+    Number.isFinite(parsedPersonaId) ? parsedPersonaId : null,
+    selectedEntidadId,
+  );
+
+  useEffect(() => {
+    if (personaFromNotificacion) {
+      setTimeout(() => {
+        setSelectedPersona(personaFromNotificacion);
+        setSearchParams({}, { replace: true });
+      }, 0);
+    }
+  }, [personaFromNotificacion, setSearchParams]);
+
   const hasActiveFilters = Object.values(filters).some(Boolean);
 
   const clearFilters = () => {
@@ -100,7 +121,7 @@ export default function DashboardPage() {
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-col gap-1">
               <h1 className="text-4xl pl-10 md:pl-0 font-extrabold tracking-tight bg-gradient-to-r from-primary to-indigo-400 bg-clip-text text-transparent">
-                Sr. Cobranza
+                Astre
               </h1>
               <p className="text-base text-muted-foreground pl-10 md:pl-0 font-medium italic">
                 {isLoading || entidadesLoading
@@ -110,11 +131,18 @@ export default function DashboardPage() {
             </div>
 
             <div className="flex flex-col gap-7 lg:gap-4 lg:flex-row lg:items-center w-full lg:w-auto">
+              <button
+                onClick={() => setIsMarcoRegulatorioOpen(true)}
+                className="rounded-xl whitespace-nowrap border border-border bg-card px-4 py-2.5 text-sm font-semibold shadow-sm transition-all hover:bg-primary/10 hover:text-primary hover:border-primary/30 active:scale-95 text-center cursor-pointer"
+              >
+                Marco regulatorio
+              </button>
+
               <a
                 href={MANUAL_PROCEDIMIENTO_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-xl whitespace-nowrap border border-border bg-card px-4 py-2.5 text-sm font-semibold shadow-sm transition-all hover:bg-primary/10 hover:text-primary hover:border-primary/30 active:scale-95"
+                className="rounded-xl whitespace-nowrap border border-border bg-card px-4 py-2.5 text-sm font-semibold shadow-sm transition-all hover:bg-primary/10 hover:text-primary hover:border-primary/30 active:scale-95 text-center"
               >
                 Manual de procedimiento
               </a>
@@ -233,7 +261,9 @@ export default function DashboardPage() {
               className="rounded-xl border border-border bg-card px-3 py-2 text-sm font-bold shadow-sm outline-none ring-offset-background transition-all hover:border-primary/40 focus:ring-2 focus:ring-primary focus:ring-offset-2"
             >
               <option value="deudaDesc">Total deuda (Mayor a menor)</option>
-              <option value="cuotasDesc">Cant. cuotas (Mayor a menor)</option>
+              <option value="patentesDesc">Cant. cuotas Patentes (Mayor a menor)</option>
+              <option value="tgiUrbanoDesc">Cant. cuotas TGI Urbano (Mayor a menor)</option>
+              <option value="tgiRuralDesc">Cant. cuotas TGI Rural (Mayor a menor)</option>
               <option value="contactoDesc">Último contacto (Más reciente)</option>
               <option value="contactoAsc">Último contacto (Menos reciente)</option>
             </select>
@@ -288,6 +318,12 @@ export default function DashboardPage() {
           persona={selectedPersona}
           onClose={() => setSelectedPersona(null)}
           onPersonaUpdated={(p) => setSelectedPersona(p)}
+        />
+      )}
+
+      {isMarcoRegulatorioOpen && (
+        <MarcoRegulatorioModal
+          onClose={() => setIsMarcoRegulatorioOpen(false)}
         />
       )}
     </div>

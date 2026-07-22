@@ -35,7 +35,9 @@ api.interceptors.request.use(
       }
 
       const currentEntidadId = localStorage.getItem('currentEntidadId')
-      if (currentEntidadId) {
+      // Permite opt-out por request seteando explícitamente `x-entidad-id` a `null`
+      // (útil para endpoints que deben traer datos de todas las entidades).
+      if (currentEntidadId && config.headers['x-entidad-id'] === undefined) {
         config.headers['x-entidad-id'] = currentEntidadId
       }
     } catch (error) {

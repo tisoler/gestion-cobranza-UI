@@ -17,10 +17,17 @@ import {
   Receipt,
   Calendar,
   Loader2,
+  ExternalLink,
+  Check,
 } from "lucide-react";
 import type { Persona, GestionUI, Cuota } from "../types";
 import api from "../lib/api";
 import { useSWRConfig } from "swr";
+import useSWRMutation from "swr/mutation";
+import { useAuth } from "../contexts/AuthContext";
+import { useUsuariosEntidad } from "../hooks/use-usuarios-entidad";
+import { MentionTextarea } from "./MentionTextarea";
+import { formatObservacionesConMenciones } from "../lib/mentions";
 import { PlanPagoSection } from "./plan-pago-section";
 import { isMobile } from "../lib/helpers";
 
@@ -186,6 +193,12 @@ export function PersonaDetailModal({
   onPersonaUpdated,
 }: PersonaDetailModalProps) {
   const { mutate } = useSWRConfig();
+  const { user } = useAuth();
+  const { usuarios: usuariosEntidad, isLoading: loadingUsuarios } =
+    useUsuariosEntidad();
+  const usuariosParaMencionar = usuariosEntidad.filter(
+    (u) => u.uid !== user?.id,
+  );
   const [gestiones, setGestiones] = useState<GestionUI[]>(
     persona.gestiones || [],
   );
@@ -197,11 +210,48 @@ export function PersonaDetailModal({
   const [historialMailOpen, setHistorialMailOpen] = useState(false);
   const [contactoOpen, setContactoOpen] = useState(true);
   const [productosOpen, setProductosOpen] = useState(true);
+  const [urbanOpen, setUrbanOpen] = useState(true);
+  const [ruralOpen, setRuralOpen] = useState(true);
+  const [patentOpen, setPatentOpen] = useState(true);
   const [formData, setFormData] = useState({
     accion: "",
     contacto: "",
     observaciones: "",
   });
+  const [mencionadosUids, setMencionadosUids] = useState<string[]>([]);
+  const [copiedPatenteId, setCopiedPatenteId] = useState<number | null>(null);
+
+  const handleCopyAndNavigate = (id: number, patente: string) => {
+    navigator.clipboard.writeText(patente)
+      .then(() => {
+        setCopiedPatenteId(id);
+      })
+      .catch((err) => {
+        console.error("Error al copiar al portapapeles:", err);
+      });
+  };
+
+  const { trigger: crearGestion, isMutating: isCreatingGestion } =
+    useSWRMutation(
+      "/gestiones",
+      async (
+        url: string,
+        {
+          arg,
+        }: {
+          arg: {
+            idPersona: number;
+            accion: string;
+            contacto: string;
+            observaciones: string;
+            mencionadosUids?: string[];
+          };
+        },
+      ) => {
+        const { data } = await api.post(url, arg);
+        return data as GestionUI;
+      },
+    );
 
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -268,13 +318,18 @@ export function PersonaDetailModal({
 
   const handleAddGestion = async () => {
     try {
-      const response = await api.post("/gestiones", {
+      const newGestion = await crearGestion({
         idPersona: persona.id,
         ...formData,
+        ...(mencionadosUids.length > 0 ? { mencionadosUids } : {}),
       });
-      const newGestion = response.data;
-      setGestiones([newGestion, ...gestiones]);
-      setFormData({ accion: "", contacto: "", observaciones: "" });
+      setGestiones((prev) => [newGestion, ...prev]);
+      setFormData({
+        accion: "",
+        contacto: "",
+        observaciones: "",
+      });
+      setMencionadosUids([]);
       mutate(`/personas/${persona.id}`);
       mutate((key: unknown) => {
         if (typeof key === "string" && key.startsWith("/personas")) return true;
@@ -600,113 +655,167 @@ export function PersonaDetailModal({
                     {/* TGI Urbano */}
                     {persona.tgiUrbanos && persona.tgiUrbanos.length > 0 && (
                       <div className="space-y-4">
-                        <h5 className="text-sm font-bold text-muted-foreground flex items-center gap-2">
-                          <Home className="size-4" /> TGI Urbano
-                        </h5>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          {persona.tgiUrbanos.map((item) => (
-                            <div
-                              key={item.id}
-                              className="group rounded-2xl border border-border bg-card p-4 transition-all hover:border-primary/30 hover:shadow-md"
-                            >
-                              <p className="font-extrabold text-primary text-[18px]">
-                                {item.domicilio}
-                              </p>
-                              <div className="mt-2 grid grid-cols-2 gap-2 text-[14px] font-bold text-muted-foreground">
-                                <span className="rounded bg-muted px-2 py-1">
-                                  Padrón: {item.numero_padron}
-                                </span>
-                                <span className="rounded bg-muted px-2 py-1 text-center">
-                                  Web: {item.codigo_web}
-                                </span>
-                              </div>
-                              <p className="mt-2 text-[14px]">
-                                {item.direccion_padron}
-                              </p>
-                              <div className="mt-3 flex gap-4 text-[12px] font-black uppercase tracking-tighter text-indigo-500/80">
-                                <span>SUP: {item.sup_terreno} M²</span>
-                                <span>FRENTE: {item.mts_frente} M</span>
-                              </div>
+                        <button
+                          onClick={() => setUrbanOpen(!urbanOpen)}
+                          className="w-full text-sm font-bold text-muted-foreground flex items-center justify-between group/prod"
+                        >
+                          <div className="flex items-center gap-2 group-hover/prod:text-primary transition-colors">
+                            <Home className="size-4" /> TGI Urbano ({persona.tgiUrbanos.length})
+                          </div>
+                          <ChevronDown className={`size-4 transition-transform duration-200 ${urbanOpen ? "rotate-180" : ""}`} />
+                        </button>
+                        {urbanOpen && (
+                          <div className="grid gap-4 sm:grid-cols-2 animate-in slide-in-from-top-1 duration-200">
+                            {persona.tgiUrbanos.map((item) => (
+                              <div
+                                key={item.id}
+                                className="group rounded-2xl border border-border bg-card p-4 transition-all hover:border-primary/30 hover:shadow-md"
+                              >
+                                <p className="font-extrabold text-primary text-[18px]">
+                                  {item.domicilio}
+                                </p>
+                                <div className="mt-2 grid grid-cols-2 gap-2 text-[14px] font-bold text-muted-foreground">
+                                  <span className="rounded bg-muted px-2 py-1">
+                                    Padrón: {item.numero_padron}
+                                  </span>
+                                  <span className="rounded bg-muted px-2 py-1 text-center">
+                                    Web: {item.codigo_web}
+                                  </span>
+                                </div>
+                                <div className="mt-3 flex gap-4 text-[12px] font-black uppercase tracking-tighter text-indigo-500/80">
+                                  <span>SUP: {item.sup_terreno} M²</span>
+                                  <span>FRENTE: {item.mts_frente} M</span>
+                                  <span>MANZANA: {item.manzana}</span>
+                                </div>
 
-                              <CuotasList cuotas={item.cuotas} />
-                              <PlanPagoSection producto="tgi_urbano" cuotas={item.cuotas} />
-                            </div>
-                          ))}
-                        </div>
+                                <CuotasList cuotas={item.cuotas} />
+                                <PlanPagoSection producto="tgi_urbano" cuotas={item.cuotas} />
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
 
                     {/* TGI Rural */}
                     {persona.tgiRurales && persona.tgiRurales.length > 0 && (
                       <div className="space-y-4">
-                        <h5 className="text-sm font-bold text-muted-foreground flex items-center gap-2">
-                          <TreePine className="size-4" /> TGI Rural
-                        </h5>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          {persona.tgiRurales.map((item) => (
-                            <div
-                              key={item.id}
-                              className="rounded-2xl border border-border bg-card p-4 transition-all hover:border-emerald-500/30 hover:shadow-md"
-                            >
-                              <p className="font-extrabold text-emerald-600 text-[18px]">
-                                {item.domicilio}
-                              </p>
-                              <div className="mt-2 flex gap-2 text-[14px] font-bold text-muted-foreground">
-                                <span className="rounded bg-muted px-2 py-1">
-                                  Padrón: {item.numero_padron}
-                                </span>
-                              </div>
-                              <p className="mt-3 text-[12px] font-black uppercase text-emerald-500/80">
-                                SUP. CAMPO: {item.sup_campo} M²
-                              </p>
+                        <button
+                          onClick={() => setRuralOpen(!ruralOpen)}
+                          className="w-full text-sm font-bold text-muted-foreground flex items-center justify-between group/prod"
+                        >
+                          <div className="flex items-center gap-2 group-hover/prod:text-emerald-600 transition-colors">
+                            <TreePine className="size-4" /> TGI Rural ({persona.tgiRurales.length})
+                          </div>
+                          <ChevronDown className={`size-4 transition-transform duration-200 ${ruralOpen ? "rotate-180" : ""}`} />
+                        </button>
+                        {ruralOpen && (
+                          <div className="grid gap-4 sm:grid-cols-2 animate-in slide-in-from-top-1 duration-200">
+                            {persona.tgiRurales.map((item) => (
+                              <div
+                                key={item.id}
+                                className="rounded-2xl border border-border bg-card p-4 transition-all hover:border-emerald-500/30 hover:shadow-md"
+                              >
+                                <p className="font-extrabold text-emerald-600 text-[18px]">
+                                  {item.domicilio}
+                                </p>
+                                <div className="mt-2 flex gap-2 text-[14px] font-bold text-muted-foreground">
+                                  <span className="rounded bg-muted px-2 py-1">
+                                    Padrón: {item.numero_padron}
+                                  </span>
+                                </div>
+                                <div className="mt-3 flex gap-4 text-[12px] font-black uppercase tracking-tighter text-emerald-500/80">
+                                  <span>
+                                    SUP. CAMPO: {item.sup_hectarea} Hectáreas
+                                  </span>
+                                  {item.manzana && (
+                                    <span>
+                                      MANZANA: {item.manzana}
+                                    </span>
+                                  )}
+                                </div>
 
-                              <CuotasList cuotas={item.cuotas} />
-                              <PlanPagoSection producto="tgi_rural" cuotas={item.cuotas} />
-                            </div>
-                          ))}
-                        </div>
+                                <CuotasList cuotas={item.cuotas} />
+                                <PlanPagoSection producto="tgi_rural" cuotas={item.cuotas} />
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
 
                     {/* Patentes */}
                     {persona.patentes && persona.patentes.length > 0 && (
                       <div className="space-y-4">
-                        <h5 className="text-sm font-bold text-muted-foreground flex items-center gap-2">
-                          <Car className="size-4" /> Patentes
-                        </h5>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          {persona.patentes.map((item) => (
-                            <div
-                              key={item.id}
-                              className="rounded-2xl border border-border bg-card p-4 transition-all hover:border-amber-500/30 hover:shadow-md"
-                            >
-                              <div className="flex justify-between items-start">
-                                <p className="font-black text-amber-600 text-lg uppercase tracking-tighter">
-                                  {item.numero_patente}
-                                </p>
-                                <div className="flex flex-col gap-1 items-end">
-                                  <span className="text-[10px] font-bold bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full">
-                                    {item.tipo}
-                                  </span>
-                                  {item.tramo && (
-                                    <span className="text-[9px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded-full uppercase tracking-tighter">
-                                      Tramo: {item.tramo}
+                        <button
+                          onClick={() => setPatentOpen(!patentOpen)}
+                          className="w-full text-sm font-bold text-muted-foreground flex items-center justify-between group/prod"
+                        >
+                          <div className="flex items-center gap-2 group-hover/prod:text-amber-600 transition-colors">
+                            <Car className="size-4" /> Patentes ({persona.patentes.length})
+                          </div>
+                          <ChevronDown className={`size-4 transition-transform duration-200 ${patentOpen ? "rotate-180" : ""}`} />
+                        </button>
+                        {patentOpen && (
+                          <div className="grid gap-4 sm:grid-cols-2 animate-in slide-in-from-top-1 duration-200">
+                            {persona.patentes.map((item) => (
+                              <div
+                                key={item.id}
+                                className="rounded-2xl border border-border bg-card p-4 transition-all hover:border-amber-500/30 hover:shadow-md"
+                              >
+                                <div className="flex justify-between items-start">
+                                  <div className="flex items-center gap-2.5">
+                                    <p className="font-black text-amber-600 text-lg uppercase tracking-tighter">
+                                      {item.numero_patente}
+                                    </p>
+                                    <a
+                                      href="https://www.dnrpa.gov.ar/portal_dnrpa/radicacion2.php"
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={() => handleCopyAndNavigate(item.id, item.numero_patente)}
+                                      className={`transition-colors inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wider ${copiedPatenteId === item.id
+                                          ? "text-emerald-600 dark:text-emerald-400"
+                                          : "text-muted-foreground hover:text-primary"
+                                        }`}
+                                      title="Copiar dominio y verificar radicación"
+                                    >
+                                      {copiedPatenteId === item.id ? (
+                                        <>
+                                          <Check className="size-3" />
+                                          <span>Copiado</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <ExternalLink className="size-3" />
+                                          <span className="underline decoration-dotted">Radicación</span>
+                                        </>
+                                      )}
+                                    </a>
+                                  </div>
+                                  <div className="flex flex-col gap-1 items-end">
+                                    <span className="text-[10px] font-bold bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full">
+                                      {item.tipo}
                                     </span>
-                                  )}
+                                    {item.tramo && (
+                                      <span className="text-[9px] font-black bg-primary/10 text-primary px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                                        Tramo: {item.tramo}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                              <p className="mt-1 font-bold text-[16px]">
-                                {item.marcaModelo || `${item.marca} ${item.modelo}`}
-                              </p>
-                              <p className="mt-1 text-[14px] text-muted-foreground">
-                                {item.domicilio}
-                              </p>
+                                <p className="mt-1 font-bold text-[16px]">
+                                  {item.marcaModelo || `${item.marca} ${item.modelo}`}
+                                </p>
+                                <p className="mt-1 text-[14px] text-muted-foreground">
+                                  {item.domicilio}
+                                </p>
 
-                              <CuotasList cuotas={item.cuotas} />
-                              <PlanPagoSection producto="patente" cuotas={item.cuotas} />
-                            </div>
-                          ))}
-                        </div>
+                                <CuotasList cuotas={item.cuotas} />
+                                <PlanPagoSection producto="patente" cuotas={item.cuotas} />
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -753,6 +862,7 @@ export function PersonaDetailModal({
                       <option value="Email">Email</option>
                       <option value="WhatsApp">WhatsApp</option>
                       <option value="Visita">Visita</option>
+                      <option value="SinDatos">Sin datos de contacto</option>
                     </select>
                   </div>
                   <div className="space-y-1.5">
@@ -770,6 +880,7 @@ export function PersonaDetailModal({
                       <option value="Contactado">Contactado</option>
                       <option value="No contesta">No contesta</option>
                       <option value="Promesa Pago">Promesa Pago</option>
+                      <option value="Inubicable">Inubicable</option>
                     </select>
                   </div>
                 </div>
@@ -777,26 +888,34 @@ export function PersonaDetailModal({
                   <label className="text-xs font-bold uppercase tracking-wider text-amber-700/60 ml-1">
                     Observaciones
                   </label>
-                  <textarea
+                  <MentionTextarea
                     value={formData.observaciones}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        observaciones: e.target.value,
-                      })
-                    }
-                    rows={2}
-                    className="w-full rounded-xl border border-amber-500/20 bg-background px-4 py-3 text-sm font-medium focus:ring-4 focus:ring-amber-500/10 outline-none resize-none"
-                    placeholder="Escribe los detalles aquí..."
+                    onChange={(observaciones, uids) => {
+                      setFormData((f) => ({ ...f, observaciones }));
+                      setMencionadosUids(uids);
+                    }}
+                    usuarios={usuariosParaMencionar}
+                    loading={loadingUsuarios}
+                    rows={3}
                   />
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={handleAddGestion}
-                    disabled={!formData.accion || !formData.contacto}
+                    disabled={
+                      !formData.accion ||
+                      !formData.contacto ||
+                      !formData.observaciones.trim() ||
+                      isCreatingGestion
+                    }
                     className="flex items-center gap-2 rounded-xl bg-amber-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-amber-600/20 hover:bg-amber-700 disabled:opacity-50"
                   >
-                    <Save className="size-4" /> Guardar Gestión
+                    {isCreatingGestion ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Save className="size-4" />
+                    )}{" "}
+                    Guardar Gestión
                   </button>
                   <button
                     onClick={() => setIsAddingGestion(false)}
@@ -816,33 +935,54 @@ export function PersonaDetailModal({
                   </p>
                 </div>
               ) : (
-                gestiones.map((gestion) => (
-                  <div
-                    key={gestion.id}
-                    className="relative group rounded-2xl border border-border bg-card p-5 shadow-sm transition-all hover:border-primary/20"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex flex-col">
-                        <span className="text-xs font-black uppercase tracking-[0.15em] text-primary/40 mb-1">
-                          Resultado
-                        </span>
-                        <span className="font-black text-primary text-base">
-                          {gestion.accion} — {gestion.contacto}
-                        </span>
+                gestiones
+                  ?.sort((a, b) => new Date(b.fecha_hora).getTime() - new Date(a.fecha_hora).getTime())
+                  ?.map((gestion) => (
+                    <div
+                      key={gestion.id}
+                      className="relative group rounded-2xl border border-border bg-card p-5 shadow-sm transition-all hover:border-primary/20"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-black uppercase tracking-[0.15em] text-primary/40 mb-1">
+                            Resultado
+                          </span>
+                          <span className="font-black text-primary text-base">
+                            {gestion.accion} — {gestion.contacto}
+                          </span>
+                        </div>
+                        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                          <span className="text-[12px] font-black uppercase tracking-tighter text-muted-foreground bg-muted px-2 py-1 rounded">
+                            {formatDateTime(gestion.fecha_hora)}
+                          </span>
+                          {gestion.usuario && (
+                            <>
+                              <span className="text-muted-foreground/40">·</span>
+                              <span
+                                className="flex max-w-[200px] items-center gap-1 truncate text-[12px] font-bold text-muted-foreground/80"
+                                title={gestion.usuario}
+                              >
+                                <User className="size-3 shrink-0" />
+                                {gestion.usuario}
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
-                      <span className="text-[10px] font-black uppercase tracking-tighter text-muted-foreground bg-muted px-2 py-1 rounded">
-                        {formatDateTime(gestion.fecha_hora)}
-                      </span>
+                      {gestion.observaciones && (
+                        <div className="mt-3 p-3 rounded-lg bg-muted/30 border-l-4 border-primary/20">
+                          <p className="text-sm font-medium text-muted-foreground leading-relaxed">
+                            {formatObservacionesConMenciones(
+                              gestion.observaciones,
+                              Object.fromEntries(
+                                usuariosParaMencionar.map((u) => [u.uid, u.email]),
+                              ),
+                            )}
+                          </p>
+                        </div>
+                      )}
                     </div>
-                    {gestion.observaciones && (
-                      <div className="mt-3 p-3 rounded-lg bg-muted/30 border-l-4 border-primary/20">
-                        <p className="text-sm font-medium text-muted-foreground leading-relaxed">
-                          {gestion.observaciones}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                ))
+                  ))
               )}
             </div>
           </div>

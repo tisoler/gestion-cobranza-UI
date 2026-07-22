@@ -56,7 +56,7 @@ export default function PlanesPagoPage() {
         descuentoIntereses: editingPlan.descuentoIntereses,
         porcentajeAnticipo: editingPlan.porcentajeAnticipo,
         activo: editingPlan.activo,
-        idEntidad: editingPlan.idEntidad
+        idEntidad: editingPlan.idEntidad || undefined
       });
       setIsModalOpen(true);
     }

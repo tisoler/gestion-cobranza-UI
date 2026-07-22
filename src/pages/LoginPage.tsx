@@ -17,7 +17,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      
+
       if (!userCredential.user.emailVerified) {
         setError('Tu cuenta aún no ha sido verificada. Revisa tu correo electrónico.');
         await signOut(auth);
@@ -42,7 +42,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const userCredential = await signInWithPopup(auth, googleProvider);
-      
+
       // For Google users, we might still want to check (though usually verified)
       if (!userCredential.user.emailVerified) {
         setError('Tu cuenta de Google no está verificada. No puedes ingresar.');
@@ -74,7 +74,7 @@ export default function LoginPage() {
             <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-xl bg-primary/20 text-primary">
               <ShieldCheck className="size-8" />
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-white">Sr. Cobranza</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-white">Astre</h1>
             <p className="mt-2 text-slate-400">Sistema de gestión de cobros</p>
           </div>
 
