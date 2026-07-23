@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Upload, FileSpreadsheet, CheckCircle, Loader2, Import, UserX, UserCheck, ChevronDown, MapPin, AlertCircle } from 'lucide-react';
 import { AutocompletePersona } from '../../../components/AutocompletePersona';
+import { NuevaPersonaModal, type NuevaPersonaInitialData, type PersonaCreada } from '../../../components/NuevaPersonaModal';
 import api from '../../../lib/api';
 import { useSWRConfig } from 'swr';
 
@@ -29,23 +30,40 @@ const LETRAS_COLUMNAS = [
 
 type ColumnMapping = Record<string, string>;
 
+type SinPersonaRow = {
+  originalIndex: number;
+  numero_padron?: string;
+  nombre?: string;
+  apellido?: string;
+  apellido_nombre?: string;
+  tipo_doc?: string;
+  nro_doc?: string;
+  cuit?: string;
+  domicilio?: string;
+  cantidad_cuotas?: number | string;
+  personaMatch?: { apellidoNombre?: string; nombre?: string; apellido?: string };
+  manualPersonaId?: number | string;
+  sugerencias?: { id: number; nombre: string; esMatchAltaConfianza?: boolean }[];
+};
+
 type PreviewResult = {
   headers: string[];
   totalFilas: number;
   nuevas: Record<string, any>[];
   existentes: Record<string, any>[];
-  sinPersona?: Record<string, any>[];
+  sinPersona?: SinPersonaRow[];
   cantidadNuevas: number;
   cantidadExistentes: number;
   cantidadSinPersona?: number;
 };
 
-function TgiUrbanoPreview({ preview, onSelectPersona, currentPage, onPageChange, isNameUnified }: {
+function TgiUrbanoPreview({ preview, onSelectPersona, currentPage, onPageChange, isNameUnified, onNuevaPersona }: {
   preview: PreviewResult;
   onSelectPersona: (rowIndex: number, personaId: number | null, nombre: string) => void;
   currentPage: number;
   onPageChange: (page: number) => void;
   isNameUnified: boolean;
+  onNuevaPersona: (rowIndex: number, row: SinPersonaRow) => void;
 }) {
   const ITEMS_PER_PAGE = 20;
   const totalItems = preview.sinPersona?.length || 0;
@@ -120,6 +138,7 @@ function TgiUrbanoPreview({ preview, onSelectPersona, currentPage, onPageChange,
                         value={row.manualPersonaId || ""}
                         onChange={(id, nombre) => onSelectPersona(actualIndex, id, nombre)}
                         placeholder={row.sugerencias?.length ? 'Seleccionar persona...' : 'Sin coincidencias'}
+                        onNuevaPersona={() => onNuevaPersona(actualIndex, row)}
                       />
                     </div>
                   </td>
@@ -174,7 +193,64 @@ export function ImportacionTgiUrbano() {
   const [previewPage, setPreviewPage] = useState(1);
   const [personLinks, setPersonLinks] = useState<Record<number, { id: number; nombre: string }>>({});
   const [step, setStep] = useState<number>(1);
+  const [nuevaPersonaRow, setNuevaPersonaRow] = useState<SinPersonaRow | null>(null);
   const { mutate } = useSWRConfig();
+
+  const handleSelectPersona = (idx: number, id: number | null, nombre: string) => {
+    if (!preview) return;
+    if (!id) {
+      setPersonLinks(prev => {
+        const copy = { ...prev };
+        delete copy[idx];
+        return copy;
+      });
+      const newSinPersona = preview.sinPersona?.map(row => row.originalIndex === idx ? { ...row, manualPersonaId: "" } : row);
+      setPreview({ ...preview, sinPersona: newSinPersona });
+    } else {
+      setPersonLinks(prev => ({ ...prev, [idx]: { id, nombre } }));
+      const newSinPersona = preview.sinPersona?.map(row => row.originalIndex === idx ? { ...row, manualPersonaId: id } : row);
+      setPreview({ ...preview, sinPersona: newSinPersona });
+    }
+  };
+
+  const handlePersonaCreada = (persona: PersonaCreada) => {
+    const idx = nuevaPersonaRow?.originalIndex;
+    const nombre = persona.apellidoNombre || `${persona.apellido || ''} ${persona.nombre || ''}`.trim();
+    mutate((key: unknown) => {
+      const keyStr = Array.isArray(key) ? key[0] : key;
+      return typeof keyStr === 'string' && keyStr.startsWith('/personas');
+    }, undefined, { revalidate: true });
+    setNuevaPersonaRow(null);
+    if (idx === undefined || !preview) return;
+    setPersonLinks(prev => ({ ...prev, [idx]: { id: persona.id, nombre } }));
+    // Vincular y agregar la persona creada a las sugerencias de la fila,
+    // para que el selector pueda mostrarla como opción seleccionada.
+    const newSinPersona = preview.sinPersona?.map(row => {
+      if (row.originalIndex !== idx) return row;
+      const yaSugerida = row.sugerencias?.some(s => s.id === persona.id);
+      return {
+        ...row,
+        manualPersonaId: persona.id,
+        sugerencias: yaSugerida
+          ? row.sugerencias
+          : [...(row.sugerencias || []), { id: persona.id, nombre }],
+      };
+    });
+    setPreview({ ...preview, sinPersona: newSinPersona });
+  };
+
+  const buildInitialData = (row: SinPersonaRow | null): NuevaPersonaInitialData => {
+    if (!row) return {};
+    return {
+      nombre: row.nombre,
+      apellido: row.apellido,
+      apellidoNombre: row.apellido_nombre,
+      tipoDoc: row.tipo_doc,
+      nroDoc: row.nro_doc,
+      cuit: row.cuit,
+      domicilio: row.domicilio,
+    };
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -386,21 +462,8 @@ export function ImportacionTgiUrbano() {
             isNameUnified={!!columnMapping.nombre && !!columnMapping.apellido && columnMapping.nombre === columnMapping.apellido}
             currentPage={previewPage}
             onPageChange={setPreviewPage}
-            onSelectPersona={(idx, id, nombre) => {
-              if (!id) {
-                setPersonLinks(prev => {
-                  const copy = { ...prev };
-                  delete copy[idx];
-                  return copy;
-                });
-                const newSinPersona = preview.sinPersona?.map(row => row.originalIndex === idx ? { ...row, manualPersonaId: "" } : row);
-                setPreview({ ...preview, sinPersona: newSinPersona });
-              } else {
-                setPersonLinks(prev => ({ ...prev, [idx]: { id, nombre } }));
-                const newSinPersona = preview.sinPersona?.map(row => row.originalIndex === idx ? { ...row, manualPersonaId: id } : row);
-                setPreview({ ...preview, sinPersona: newSinPersona });
-              }
-            }}
+            onSelectPersona={handleSelectPersona}
+            onNuevaPersona={(_idx, row) => setNuevaPersonaRow(row)}
           />
           <div className="p-6 border-t border-border flex justify-between">
             <button onClick={() => setStep(2)} className="rounded-2xl border border-border px-6 py-3 text-sm font-bold transition-all hover:bg-muted">Atrás</button>
@@ -474,6 +537,13 @@ export function ImportacionTgiUrbano() {
           </div>
         </div>
       )}
+
+      <NuevaPersonaModal
+        open={nuevaPersonaRow !== null}
+        onClose={() => setNuevaPersonaRow(null)}
+        onCreated={handlePersonaCreada}
+        initialData={buildInitialData(nuevaPersonaRow)}
+      />
     </div>
   );
 }

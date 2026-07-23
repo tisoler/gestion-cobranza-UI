@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Search, ChevronDown, Check, X } from 'lucide-react';
+import { Search, ChevronDown, Check, X, UserPlus } from 'lucide-react';
 
 interface Option {
   id: number;
@@ -13,9 +13,10 @@ interface AutocompleteProps {
   onChange: (id: number | null, nombre: string) => void;
   placeholder?: string;
   className?: string;
+  onNuevaPersona?: () => void;
 }
 
-export function AutocompletePersona({ options, value, onChange, placeholder = "Buscar persona...", className = "" }: AutocompleteProps) {
+export function AutocompletePersona({ options, value, onChange, placeholder = "Buscar persona...", className = "", onNuevaPersona }: AutocompleteProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
@@ -134,6 +135,24 @@ export function AutocompletePersona({ options, value, onChange, placeholder = "B
               </div>
             )}
           </div>
+
+          {/* Botón fijo al pie del dropdown, siempre visible */}
+          {onNuevaPersona && (
+            <div className="border-t border-border bg-muted/30 p-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false);
+                  setSearchTerm('');
+                  onNuevaPersona();
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2.5 text-xs rounded-lg transition-colors cursor-pointer bg-primary/5 hover:bg-primary/10 text-primary font-black uppercase tracking-widest text-left"
+              >
+                <UserPlus className="size-3.5" />
+                Agregar nueva persona
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
