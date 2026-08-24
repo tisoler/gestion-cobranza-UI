@@ -1,0 +1,29 @@
+services:
+  # Frontend
+  gestion-cobranza-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Variables de entorno para el build (se "bakean" en el código)
+        # IMPORTANTE: Estas variables deben pasarse en tiempo de build, no en runtime
+        VITE_API_URL: ${VITE_API_URL:-https://api.cobros.astre.net.ar/api}
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY:-AIzaSyDyVrK2K5yZ7SAtcf8gfDVETz117To6cr0}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN:-gestion-cobranza.firebaseapp.com}
+        VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID:-gestion-cobranza}
+        VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET:-gestion-cobranza.firebasestorage.app}
+        VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID:-836690955520}
+        VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID:-1:836690955520:web:921d72933e6f48f3e1f7e5}
+        VITE_FIREBASE_MEASUREMENT_ID: ${VITE_FIREBASE_MEASUREMENT_ID:-G-E2Y0WGC98M}
+    container_name: gestion-cobranza-ui
+    ports:
+      - "3071:80" # Puerto del host:Puerto del contenedor (Apache escucha en 80)
+    networks:
+      - quipu-network
+    restart: unless-stopped
+
+networks:
+  quipu-network:
+    # Usar la red existente si bd-postgres ya está corriendo
+    external: true
+    name: quipu_quipu-network # o el nombre de la red donde está bd-postgres
