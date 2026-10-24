@@ -5,7 +5,7 @@ FROM node:24.22.1-alpine AS builder
 WORKDIR /app
 
 # Copiar archivos de dependencias
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
 # Instalar pnpm
 RUN npm install -g pnpm@11.24.0
